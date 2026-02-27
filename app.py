@@ -2,6 +2,7 @@ from flask import Flask, render_template, send_from_directory, url_for, request,
 import os
 import json
 from pathlib import Path
+from functools import lru_cache
 import config
 
 app = Flask(__name__)
@@ -32,6 +33,7 @@ def get_site_name(network, station):
     return SITE_NAMES.get(network, {}).get(station, station)
 
 
+@lru_cache(maxsize=1024)
 def find_thumbnail(path):
     """
     Find the best thumbnail for a network.
@@ -68,7 +70,8 @@ def find_thumbnail(path):
 
             # 1. HHZ full.jpg
             if channel.endswith("HHZ") and file == "full.jpg":
-                priority[1] = rel
+                # Best priority found, return immediately!
+                return url_for("serve_plot", filename=rel)
 
             # 2. Any Z full.jpg
             elif channel.endswith("Z") and file == "full.jpg":
