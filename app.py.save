@@ -1,0 +1,70 @@
+def network_page(network):
+    """Network page ? list stations with thumbnails and site names"""
+    net_path = os.path.join(PLOTS_DIR, network)
+    if not os.path.exists(net_path):
+        return f"Network {network} not found", 404
+
+    stations = sorted(
+        [d for d in os.listdir(net_path) if os.path.isdir(os.path.join(net_path, d))]
+    )
+
+    station_cards = []
+    for sta in stations:
+        sta_path = os.path.join(net_path, sta)
+        thumb = find_thumbnail(sta_path)
+        site_name = get_site_name(network, sta)
+        station_cards.append((sta, thumb, site_name))
+
+    return render_template("network.html", network=network, stations=station_cards)
+
+
+@app.route("/psds/<network>/<station>")
+def station_page(network, station):
+    """Station page ? show all channels with their plots"""
+    sta_path = os.path.join(PLOTS_DIR, network, station)
+    if not os.path.exists(sta_path):
+        return f"Station {station} not found in {network}", 404
+
+    channels = sorted(
+        [d for d in os.listdir(sta_path) if os.path.isdir(os.path.join(sta_path, d))]
+    )
+
+    station_data = {}
+    for chan in channels:
+        chan_path = os.path.join(sta_path, chan)
+        plots = {}
+        for file in os.listdir(chan_path):
+            if file.lower().endswith((".jpg", ".png")):
+                plot_name = os.path.splitext(file)[0]
+                plots[plot_name] = url_for(
+                    "serve_plot", filename=f"{network}/{station}/{chan}/{file}"
+                )
+        if plots:
+            ordered = {k: plots[k] for k in PLOT_ORDER if k in plots}
+            # add unexpected plots at the end
+            for k in sorted(plots):
+                if k not in ordered:
+                    ordered[k] = plots[k]
+            station_data[chan] = ordered
+
+    site_name = get_site_name(network, station)
+
+    return render_template(
+        "station.html",
+        network=network,
+        station=station,
+        station_data=station_data,
+        site_name=site_name,
+        no_plots=(len(station_data) == 0),
+    )
+
+
+@app.route("/plots/<path:filename>")
+def serve_plot(filename):
+    """Serve static images"""
+    return send_from_directory(PLOTS_DIR, filename)
+
+
+# --- Main ---------------------------------------------------
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)

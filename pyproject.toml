@@ -1,0 +1,12 @@
+[project]
+name = "plots-app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "flask>=3.1.2",
+    "gunicorn>=23.0.0",
+    "obspy>=1.4.2",
+    "osbpy>=3.0.1",
+]

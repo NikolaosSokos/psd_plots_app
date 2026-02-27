@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Stations in {{ network }}{% endblock %}
+{% block content %}
+
+<h1 class="text-3xl font-bold mb-8">Stations in {{ network }}</h1>
+
+<!-- ========== TOP NAV BAR ========== -->
+<div class="flex gap-6 mb-8 text-lg font-semibold">
+  <a href="#HH" class="text-indigo-600 hover:underline">HH*</a>
+  <a href="#EH" class="text-indigo-600 hover:underline">EH*</a>
+  <a href="#HN" class="text-indigo-600 hover:underline">HN*</a>
+</div>
+
+<!-- ========== HH SECTION ========== -->
+{% if groups.HH %}
+  <h2 id="HH" class="text-2xl font-bold mt-10 mb-4">HH* Channels</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for sta, thumb, site_name in groups.HH %}
+      <a href="{{ url_for('station_page', network=network, station=sta) }}"
+        class="block bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden">
+
+        {% if thumb %}
+          <img src="{{ thumb }}" class="w-full h-48 object-contain bg-gray-50">
+        {% else %}
+          <div class="w-full h-48 bg-gray-200 flex items-center justify-center">No Preview</div>
+        {% endif %}
+
+        <div class="p-4 text-center">
+          <h2 class="text-lg font-semibold">{{ sta }}</h2>
+          {% if site_name %}
+            <p class="text-sm text-gray-600">{{ site_name }}</p>
+          {% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<!-- ========== EH SECTION ========== -->
+{% if groups.EH %}
+  <h2 id="EH" class="text-2xl font-bold mt-10 mb-4">EH* Channels</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for sta, thumb, site_name in groups.EH %}
+      <a href="{{ url_for('station_page', network=network, station=sta) }}"
+        class="block bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden">
+
+        {% if thumb %}
+          <img src="{{ thumb }}" class="w-full h-48 object-contain bg-gray-50">
+        {% else %}
+          <div class="w-full h-48 bg-gray-200 flex items-center justify-center">No Preview</div>
+        {% endif %}
+
+        <div class="p-4 text-center">
+          <h2 class="text-lg font-semibold">{{ sta }}</h2>
+          {% if site_name %}
+            <p class="text-sm text-gray-600">{{ site_name }}</p>
+          {% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<!-- ========== HN SECTION ========== -->
+{% if groups.HN %}
+  <h2 id="HN" class="text-2xl font-bold mt-10 mb-4">HN* Channels</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for sta, thumb, site_name in groups.HN %}
+      <a href="{{ url_for('station_page', network=network, station=sta) }}"
+        class="block bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden">
+
+        {% if thumb %}
+          <img src="{{ thumb }}" class="w-full h-48 object-contain bg-gray-50">
+        {% else %}
+          <div class="w-full h-48 bg-gray-200 flex items-center justify-center">No Preview</div>
+        {% endif %}
+
+        <div class="p-4 text-center">
+          <h2 class="text-lg font-semibold">{{ sta }}</h2>
+          {% if site_name %}
+            <p class="text-sm text-gray-600">{{ site_name }}</p>
+          {% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<div class="mt-8">
+  <a href="{{ url_for('index') }}" class="text-indigo-600 hover:underline">
+    Back to Networks
+  </a>
+</div>
+
+{% endblock %}

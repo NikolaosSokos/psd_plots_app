@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Networks{% endblock %}
+{% block content %}
+
+  <h1 class="text-3xl font-bold mb-8">Available Networks</h1>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for net, thumb in networks %}
+      <a href="{{ url_for('network_page', network=net) }}"
+         class="block bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden">
+        
+        {% if thumb %}
+          <img src="{{ thumb }}" alt="{{ net }}" class="w-full h-48 object-contain bg-gray-50">
+        {% else %}
+          <div class="w-full h-48 bg-gray-200 flex items-center justify-center text-gray-500">
+            No Preview
+          </div>
+        {% endif %}
+        
+        <div class="p-4 text-center">
+          <h2 class="text-lg font-semibold text-gray-800">{{ net }}</h2>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+
+{% endblock %}
