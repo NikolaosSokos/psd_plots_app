@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  web:
+    build: .
+    container_name: psd_plots_app
+    ports:
+      - "5000:5000"
+    environment:
+      - PLOTS_DIR=/darrays/qc-working/images
+      - FLASK_HOST=0.0.0.0
+      - FLASK_PORT=5000
+      - GUNICORN_WORKERS=4
+      - GUNICORN_TIMEOUT=120
+    volumes:
+      # Mount the actual plots directory onto the container
+      # Adjust the host path on the left side to match your system's data location
+      - /darrays/qc-working/images:/darrays/qc-working/images:ro
+    restart: unless-stopped

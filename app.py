@@ -2,11 +2,12 @@ from flask import Flask, render_template, send_from_directory, url_for, request,
 import os
 import json
 from pathlib import Path
+import config
 
 app = Flask(__name__)
 
 # Paths
-PLOTS_DIR = "/darrays/qc-working/images"
+PLOTS_DIR = config.PLOTS_DIR
 
 # Load station names (pretty names)
 SITE_JSON = Path("stations.json")
@@ -338,4 +339,4 @@ def map_page():
 
 # --- Main ---------------------------------------------------
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True, host=config.HOST, port=config.PORT)
