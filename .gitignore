@@ -1,10 +1,28 @@
-# Python-generated files
+# Python
 __pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+*.py[cod]
+*.pyc
+.venv/
+venv/
 
-# Virtual environments
-.venv
+# Editor backups
+*.save
+*.save.[0-9]
+*.swp
+*~
+
+# Logs
+*.log
+app.log
+
+# Regenerated cache files (rebuilt by scripts/parse_all.py, get_sites.py, etc.)
+stations.json
+stations_meta.json
+last_data_cache.json
+instrument_cache.json
+channel_start.json
+valid_channels.txt
+
+# OS
+.DS_Store
+Thumbs.db

@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "flask>=3.1.2",
+    "flask-httpauth>=4.8.1",
     "gunicorn>=23.0.0",
     "obspy>=1.4.2",
     "osbpy>=3.0.1",

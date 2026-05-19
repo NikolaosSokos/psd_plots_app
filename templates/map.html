@@ -1,46 +1,361 @@
 {% extends "base.html" %}
 {% block title %}Station Map{% endblock %}
-
 {% block content %}
-<h1 class="text-2xl font-bold mb-6">Station Map</h1>
-
-<div id="map" class="w-full h-[600px] rounded-lg shadow"></div>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+<style>
+  #map-wrapper {
+    position: relative;
+    width: 100%;
+    height: 780px;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  #map {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Side Panel */
+  #side-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    width: 220px;
+    max-height: calc(100% - 20px);
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    overflow: hidden;
+    transition: width 0.25s ease;
+  }
+
+  #side-panel.collapsed { width: 40px; }
+
+  #panel-toggle {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: #1e40af;
+    color: white;
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  #panel-body { overflow-y: auto; flex: 1; }
+  #side-panel.collapsed #panel-body  { display: none; }
+  #side-panel.collapsed #panel-title { display: none; }
+
+  .net-section { border-bottom: 1px solid #f3f4f6; }
+
+  .net-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #374151;
+    cursor: pointer;
+    background: #f9fafb;
+    user-select: none;
+  }
+  .net-header:hover { background: #f3f4f6; }
+
+  .net-color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .net-stations { display: none; }
+  .net-stations.open { display: block; }
+
+  .sta-item {
+    padding: 5px 10px 5px 28px;
+    font-size: 12px;
+    color: #4b5563;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+  }
+  .sta-item:hover  { background: #eff6ff; color: #1d4ed8; }
+  .sta-item.active { background: #dbeafe; color: #1e40af; font-weight: 600; }
+
+  .net-count {
+    margin-left: auto;
+    font-size: 10px;
+    color: #9ca3af;
+    font-weight: 400;
+  }
+
+  #station-search {
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 12px;
+    border: none;
+    border-bottom: 1px solid #e5e7eb;
+    outline: none;
+    background: #fff;
+    box-sizing: border-box;
+  }
+  #station-search:focus { background: #eff6ff; }
+
+  /* Legend */
+  #legend {
+    position: absolute;
+    bottom: 24px;
+    left: 10px;
+    z-index: 1000;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #374151;
+    line-height: 2;
+  }
+  #legend div { display: flex; align-items: center; gap: 6px; }
+</style>
+
+<div class="flex items-center justify-between mb-4">
+  <h1 class="text-2xl font-bold">Station Map</h1>
+  <span class="text-sm text-gray-500">{{ stations|length }} stations</span>
+</div>
+
+<div id="map-wrapper">
+  <div id="map"></div>
+
+  <div id="side-panel">
+    <div id="panel-toggle" onclick="togglePanel()">
+      <span id="panel-title">Stations</span>
+      <span id="toggle-icon" style="font-size:16px;flex-shrink:0;">&#9664;</span>
+    </div>
+    <div id="panel-body">
+      <input type="text" id="station-search" placeholder="Filter stations..." oninput="filterStations(this.value)" />
+      <div id="network-list"></div>
+    </div>
+  </div>
+
+  <div id="legend">
+    <div>
+      <svg width="16" height="16" viewBox="0 0 22 22"><polygon points="11,2 21,20 1,20" fill="#888" stroke="white" stroke-width="1.5"/></svg>
+      Broadband / Short period
+    </div>
+    <div>
+      <svg width="16" height="16" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#888" stroke="white" stroke-width="1.5"/></svg>
+      Strong motion only (HN*)
+    </div>
+  </div>
+</div>
+
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
-  const stations = {{ stations|tojson }};
+const stations = {{ stations|tojson }};
 
-  const map = L.map('map').setView([38.0, 23.7], 6);
+// Final network colors
+const NET_COLORS = {
+  "HL": "#1d4ed8",  // Blue
+  "HT": "#f59e0b",  // Yellow
+  "HP": "#16a34a",  // Green
+  "HA": "#ea580c",  // Orange
+  "HC": "#7c3aed",  // Purple
+  "CQ": "#0891b2",  // Cyan
+  "ME": "#db2777",  // Pink
+  "1Y": "#374151",  // Dark gray
+  "HI": "#dc2626",  // Red
+  "EG": "#6b7280",  // Mid gray
+  "5B": "#a1a1aa",  // Light gray
+  "KF": "#92400e",  // Brown
+};
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
+const CUSTOM_ORDER = ["HL","HT","HP","HA","HC","CQ","ME","1Y","HI","EG","5B","KF"];
 
-  stations.forEach(st => {
-    if (!st.latitude || !st.longitude) return;
+// -- Marker type --
+function markerType(channels) {
+  if (!channels || channels.length === 0) return "triangle";
+  const codes = channels.map(c => c.code);
+  const hasHH = codes.some(c => c.startsWith("HH"));
+  const hasEH = codes.some(c => c.startsWith("EH"));
+  const hasHN = codes.some(c => c.startsWith("HN"));
+  return (hasHN && !hasHH && !hasEH) ? "circle" : "triangle";
+}
 
-    let channelsList = "";
-    if (st.channels && st.channels.length > 0) {
-      channelsList = "<ul>" + st.channels.map(
-        c => `<li>${c.location}.${c.code} (since ${c.start_date})</li>`
-      ).join("") + "</ul>";
-    }
+// -- Icon factories --
+function triangleIcon(color) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
+    <polygon points="11,2 21,20 1,20" fill="${color}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+  </svg>`;
+  return L.divIcon({ html: svg, className: "", iconSize: [22,22], iconAnchor: [11,20], popupAnchor: [0,-22] });
+}
 
-    const popupContent = `
-      <div class="text-sm">
-        <strong>${st.network}.${st.station}</strong><br/>
-        ${st.site_name || ""}<br/>
-        Elevation: ${st.elevation || "N/A"} m<br/>
-        <a href="/psds/${st.network}/${st.station}" class="text-indigo-600 underline">View PSD plots</a>
-        ${channelsList}
+function circleIcon(color) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14">
+    <circle cx="7" cy="7" r="6" fill="${color}" stroke="white" stroke-width="1.5"/>
+  </svg>`;
+  return L.divIcon({ html: svg, className: "", iconSize: [14,14], iconAnchor: [7,7], popupAnchor: [0,-10] });
+}
+
+// -- Map  always centered on Greece --
+const map = L.map("map").setView([38.5, 24.0], 6);
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  maxZoom: 18,
+}).addTo(map);
+
+// -- Markers --
+const markerMap = {};
+
+stations.forEach(st => {
+  if (st.latitude == null || st.longitude == null) return;
+
+  const color = NET_COLORS[st.network] || "#888";
+  const type  = markerType(st.channels);
+  const icon  = type === "circle" ? circleIcon(color) : triangleIcon(color);
+
+  let channelHTML = "";
+  if (st.channels && st.channels.length > 0) {
+    const codes = [...new Set(st.channels.map(c => c.code))].join(", ");
+    channelHTML = `<div style="font-size:11px;color:#6b7280;margin-top:3px;">Channels: ${codes}</div>`;
+  }
+
+  const popupHTML = `
+    <div style="min-width:190px;font-family:sans-serif;line-height:1.5;">
+      <div style="font-weight:700;font-size:14px;color:${color};">${st.network}.${st.station}</div>
+      <div style="font-size:13px;color:#374151;">${st.site_name || "<em style='color:#9ca3af'>No name</em>"}</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:4px;">
+        ${st.latitude.toFixed(4)}&deg;N, ${st.longitude.toFixed(4)}&deg;E
+        ${st.elevation != null ? "&nbsp;|&nbsp;" + st.elevation + " m" : ""}
       </div>
-    `;
+      ${channelHTML}
+      <a href="/psds/${st.network}/${st.station}"
+         style="display:inline-block;margin-top:8px;font-size:12px;color:#2563eb;font-weight:600;text-decoration:none;">
+        &#8594; View PSD plots
+      </a>
+    </div>`;
 
-    L.marker([st.latitude, st.longitude])
-      .addTo(map)
-      .bindPopup(popupContent);
+  const marker = L.marker([st.latitude, st.longitude], { icon, title: `${st.network}.${st.station}` })
+    .bindPopup(popupHTML, { maxWidth: 260 })
+    .addTo(map);
+
+  markerMap[`${st.network}.${st.station}`] = marker;
+});
+
+// -- Side panel --
+const netList = document.getElementById("network-list");
+
+const byNetwork = {};
+stations.forEach(st => {
+  if (!byNetwork[st.network]) byNetwork[st.network] = [];
+  byNetwork[st.network].push(st);
+});
+
+CUSTOM_ORDER.forEach(net => {
+  const stas = byNetwork[net];
+  if (!stas || stas.length === 0) return;
+
+  const color  = NET_COLORS[net] || "#888";
+  const sorted = stas.sort((a, b) => a.station.localeCompare(b.station));
+
+  const section = document.createElement("div");
+  section.className = "net-section";
+
+  const header = document.createElement("div");
+  header.className = "net-header";
+  header.innerHTML = `
+    <span class="net-color-dot" style="background:${color};"></span>
+    <span>${net}</span>
+    <span class="net-count">${sorted.length}</span>
+    <span class="arrow" style="margin-left:4px;font-size:10px;color:#9ca3af;">&#9660;</span>
+  `;
+
+  const staList = document.createElement("div");
+  staList.className = "net-stations";
+
+  sorted.forEach(st => {
+    const type = markerType(st.channels);
+    const shapeSvg = type === "circle"
+      ? `<svg width="8" height="8" viewBox="0 0 14 14" style="margin-right:5px;flex-shrink:0;"><circle cx="7" cy="7" r="6" fill="${color}" stroke="white" stroke-width="1.5"/></svg>`
+      : `<svg width="8" height="9" viewBox="0 0 22 22" style="margin-right:5px;flex-shrink:0;"><polygon points="11,2 21,20 1,20" fill="${color}" stroke="white" stroke-width="1.5"/></svg>`;
+
+    const item = document.createElement("div");
+    item.className = "sta-item";
+    item.dataset.key  = `${st.network}.${st.station}`;
+    item.dataset.name = (st.site_name || "").toLowerCase();
+    item.dataset.code = st.station.toLowerCase();
+    item.title = st.site_name || st.station;
+    item.innerHTML = shapeSvg + st.station;
+
+    item.addEventListener("click", () => {
+      document.querySelectorAll(".sta-item").forEach(el => el.classList.remove("active"));
+      item.classList.add("active");
+      const marker = markerMap[`${st.network}.${st.station}`];
+      if (marker) {
+        map.setView(marker.getLatLng(), 10, { animate: true });
+        marker.openPopup();
+      }
+    });
+
+    staList.appendChild(item);
   });
+
+  header.addEventListener("click", () => {
+    const isOpen = staList.classList.contains("open");
+    staList.classList.toggle("open", !isOpen);
+    header.querySelector(".arrow").innerHTML = isOpen ? "&#9660;" : "&#9650;";
+  });
+
+  section.appendChild(header);
+  section.appendChild(staList);
+  netList.appendChild(section);
+});
+
+// -- Toggle panel --
+let panelOpen = true;
+function togglePanel() {
+  panelOpen = !panelOpen;
+  document.getElementById("side-panel").classList.toggle("collapsed", !panelOpen);
+  document.getElementById("toggle-icon").innerHTML = panelOpen ? "&#9664;" : "&#9654;";
+}
+
+// -- Filter --
+function filterStations(query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll(".net-section").forEach(section => {
+    const items   = section.querySelectorAll(".sta-item");
+    const staList = section.querySelector(".net-stations");
+    let anyVisible = false;
+
+    items.forEach(item => {
+      const match = !q || item.dataset.code.includes(q) || item.dataset.name.includes(q);
+      item.style.display = match ? "flex" : "none";
+      if (match) anyVisible = true;
+    });
+
+    section.style.display = anyVisible ? "" : "none";
+    if (q && anyVisible) staList.classList.add("open");
+    else if (!q) staList.classList.remove("open");
+  });
+}
 </script>
+
 {% endblock %}
